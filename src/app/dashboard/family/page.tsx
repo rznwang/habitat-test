@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import {
   getCurrentUser,
   getUserFamily,
@@ -25,6 +26,20 @@ export default async function FamilyPage() {
         </h1>
         {isAdmin && <InviteButton familyId={family.id} />}
       </div>
+
+      <Link
+        href="/dashboard/family/photos"
+        className="flex items-center gap-3 rounded-[16px] border border-latte bg-linen p-4 hover:border-umber transition-colors"
+      >
+        <span className="text-2xl">📷</span>
+        <div>
+          <p className="text-[15px] font-medium text-night">Picture Book</p>
+          <p className="text-[12px] text-clay">
+            Shared family photo album
+          </p>
+        </div>
+        <span className="ml-auto text-clay">&rarr;</span>
+      </Link>
 
       <div className="flex flex-col gap-3">
         {members.map((m) => {

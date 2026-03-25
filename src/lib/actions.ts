@@ -320,6 +320,84 @@ export async function toggleReaction(responseId: string, emoji: string) {
   return { success: true };
 }
 
+// ── Family Photos ───────────────────────────────────────────
+
+export async function uploadFamilyPhoto(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) return { error: "No photo selected" };
+
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    return { error: "Only JPEG, PNG, WebP, and GIF images are allowed" };
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    return { error: "Image must be under 5 MB" };
+  }
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("family-photos")
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("family-photos").getPublicUrl(path);
+
+  return { url: publicUrl };
+}
+
+export async function addFamilyPhoto(
+  familyId: string,
+  imageUrl: string,
+  caption: string | null
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase.from("family_photos").insert({
+    family_id: familyId,
+    user_id: user.id,
+    image_url: imageUrl,
+    caption: caption?.trim() || null,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/family/photos");
+  return { success: true };
+}
+
+export async function deleteFamilyPhoto(photoId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("family_photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/family/photos");
+  return { success: true };
+}
+
 // ── Week Progression ────────────────────────────────────────
 
 export async function voteToAdvanceWeek(sprintId: string, weekNumber: number) {

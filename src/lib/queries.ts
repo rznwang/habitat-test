@@ -167,6 +167,16 @@ export async function getWeekVotes(sprintId: string, weekNumber: number) {
   return data ?? [];
 }
 
+export async function getFamilyPhotos(familyId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("family_photos")
+    .select("*, users(id, display_name, avatar_url)")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
 /**
  * Returns a per-member completion status for the given week:
  * which members have responded to all activities in the week,

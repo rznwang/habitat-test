@@ -210,6 +210,19 @@
 
 ---
 
+## family_photos
+
+| Column | Type | Default | Constraints |
+|---|---|---|---|
+| id | uuid | `gen_random_uuid()` | PK |
+| family_id | uuid | | NOT NULL, FK → families.id |
+| user_id | uuid | | NOT NULL, FK → users.id |
+| image_url | varchar | | NOT NULL |
+| caption | text | | |
+| created_at | timestamptz | `now()` | |
+
+---
+
 ## test_items
 
 | Column | Type | Default | Constraints |

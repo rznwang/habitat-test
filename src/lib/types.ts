@@ -163,3 +163,14 @@ export interface WeekVote {
   week_number: number;
   created_at: string;
 }
+
+export interface FamilyPhoto {
+  id: string;
+  family_id: string;
+  user_id: string;
+  image_url: string;
+  caption: string | null;
+  created_at: string;
+  // joined fields
+  users?: User;
+}
