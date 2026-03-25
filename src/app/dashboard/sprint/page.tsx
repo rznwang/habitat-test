@@ -7,8 +7,10 @@ import {
   getSprintActivities,
   getSprintResponses,
   getWeekProgressionStatus,
+  getDisbandVoteStatus,
 } from "@/lib/queries";
 import { WeekProgressionPanel } from "./week-progression-panel";
+import { DisbandSprintPanel } from "./disband-sprint-panel";
 
 export default async function SprintPage() {
   const user = await getCurrentUser();
@@ -46,12 +48,15 @@ export default async function SprintPage() {
   const currentWeek = sprint.current_week ?? 1;
 
   // Get progression status for current week
-  const progression = await getWeekProgressionStatus(
-    sprint.id,
-    family.id,
-    sprint.theme_id,
-    currentWeek
-  );
+  const [progression, disbandStatus] = await Promise.all([
+    getWeekProgressionStatus(
+      sprint.id,
+      family.id,
+      sprint.theme_id,
+      currentWeek
+    ),
+    getDisbandVoteStatus(sprint.id, family.id),
+  ]);
 
   // Group activities by week
   const weeks = Array.from({ length: 6 }, (_, i) => i + 1);
@@ -203,6 +208,16 @@ export default async function SprintPage() {
           </div>
         );
       })}
+
+      {/* Disband sprint */}
+      <DisbandSprintPanel
+        sprintId={sprint.id}
+        currentUserId={user.id}
+        memberStatus={disbandStatus.memberStatus}
+        votedCount={disbandStatus.votedCount}
+        totalMembers={disbandStatus.totalMembers}
+        allVoted={disbandStatus.allVoted}
+      />
     </div>
   );
 }

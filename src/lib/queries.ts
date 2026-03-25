@@ -252,3 +252,39 @@ export async function getWeekProgressionStatus(
     canAdvance,
   };
 }
+
+export async function getDisbandVoteStatus(
+  sprintId: string,
+  familyId: string
+) {
+  const supabase = await createClient();
+
+  // Get all family members
+  const { data: members } = await supabase
+    .from("family_members")
+    .select("user_id, users(id, display_name, avatar_url)")
+    .eq("family_id", familyId);
+
+  // Get disband votes for this sprint
+  const { data: votes } = await supabase
+    .from("disband_votes")
+    .select("user_id")
+    .eq("sprint_id", sprintId);
+
+  const voteSet = new Set((votes ?? []).map((v) => v.user_id));
+
+  const memberStatus = (members ?? []).map((m) => {
+    const u = m.users as { id: string; display_name: string | null; avatar_url: string | null } | null;
+    return {
+      userId: m.user_id,
+      displayName: u?.display_name ?? null,
+      avatarUrl: u?.avatar_url ?? null,
+      hasVoted: voteSet.has(m.user_id),
+    };
+  });
+
+  const allVoted = memberStatus.length > 0 && memberStatus.every((m) => m.hasVoted);
+  const votedCount = memberStatus.filter((m) => m.hasVoted).length;
+
+  return { memberStatus, votedCount, totalMembers: memberStatus.length, allVoted };
+}

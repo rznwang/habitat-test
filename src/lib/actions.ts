@@ -560,3 +560,99 @@ async function tryAdvanceWeek(
       .eq("id", sprintId);
   }
 }
+
+// ── Disband Sprint ──────────────────────────────────────────
+
+export async function voteToDisbandSprint(sprintId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Verify sprint exists and is active
+  const { data: sprint } = await supabase
+    .from("family_sprints")
+    .select("id, family_id")
+    .eq("id", sprintId)
+    .eq("status", "active")
+    .single();
+
+  if (!sprint) return { error: "Sprint not found" };
+
+  // Verify user is a family member
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("id")
+    .eq("family_id", sprint.family_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership) return { error: "Not a family member" };
+
+  // Insert vote (upsert in case of re-vote)
+  const { error: voteError } = await supabase.from("disband_votes").upsert(
+    {
+      sprint_id: sprintId,
+      user_id: user.id,
+    },
+    { onConflict: "sprint_id,user_id" }
+  );
+
+  if (voteError) return { error: voteError.message };
+
+  // Check if all members have voted to disband
+  await tryDisbandSprint(sprintId, sprint.family_id);
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+export async function removeDisbandVote(sprintId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  await supabase
+    .from("disband_votes")
+    .delete()
+    .eq("sprint_id", sprintId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+async function tryDisbandSprint(sprintId: string, familyId: string) {
+  const supabase = await createClient();
+
+  // Get all family members
+  const { data: members } = await supabase
+    .from("family_members")
+    .select("user_id")
+    .eq("family_id", familyId);
+
+  if (!members || members.length === 0) return;
+
+  // Check all members have voted to disband
+  const { data: votes } = await supabase
+    .from("disband_votes")
+    .select("user_id")
+    .eq("sprint_id", sprintId);
+
+  const voteSet = new Set((votes ?? []).map((v) => v.user_id));
+  for (const member of members) {
+    if (!voteSet.has(member.user_id)) return;
+  }
+
+  // All members voted — abandon the sprint
+  await supabase
+    .from("family_sprints")
+    .update({
+      status: "abandoned",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", sprintId);
+}
