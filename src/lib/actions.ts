@@ -319,3 +319,166 @@ export async function toggleReaction(responseId: string, emoji: string) {
 
   return { success: true };
 }
+
+// ── Week Progression ────────────────────────────────────────
+
+export async function voteToAdvanceWeek(sprintId: string, weekNumber: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Verify sprint exists and user is a family member
+  const { data: sprint } = await supabase
+    .from("family_sprints")
+    .select("id, family_id, current_week, theme_id")
+    .eq("id", sprintId)
+    .eq("status", "active")
+    .single();
+
+  if (!sprint) return { error: "Sprint not found" };
+  if (sprint.current_week !== weekNumber) return { error: "Invalid week" };
+
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("id")
+    .eq("family_id", sprint.family_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership) return { error: "Not a family member" };
+
+  // Check user has completed all activities for this week
+  const { data: weekActivities } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("theme_id", sprint.theme_id)
+    .eq("week_number", weekNumber);
+
+  const activityIds = (weekActivities ?? []).map((a) => a.id);
+
+  if (activityIds.length > 0) {
+    const { data: userResponses } = await supabase
+      .from("responses")
+      .select("activity_id")
+      .eq("sprint_id", sprintId)
+      .eq("user_id", user.id)
+      .in("activity_id", activityIds);
+
+    const respondedSet = new Set(
+      (userResponses ?? []).map((r) => r.activity_id)
+    );
+    if (respondedSet.size < activityIds.length) {
+      return { error: "You must complete all activities before voting to advance" };
+    }
+  }
+
+  // Insert vote (upsert in case of re-vote)
+  const { error: voteError } = await supabase.from("week_votes").upsert(
+    {
+      sprint_id: sprintId,
+      user_id: user.id,
+      week_number: weekNumber,
+    },
+    { onConflict: "sprint_id,user_id,week_number" }
+  );
+
+  if (voteError) return { error: voteError.message };
+
+  // Check if all members have voted and completed
+  await tryAdvanceWeek(sprintId, sprint.family_id, sprint.theme_id, weekNumber);
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+export async function removeAdvanceVote(sprintId: string, weekNumber: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  await supabase
+    .from("week_votes")
+    .delete()
+    .eq("sprint_id", sprintId)
+    .eq("user_id", user.id)
+    .eq("week_number", weekNumber);
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+async function tryAdvanceWeek(
+  sprintId: string,
+  familyId: string,
+  themeId: string,
+  weekNumber: number
+) {
+  const supabase = await createClient();
+
+  // Get all family members
+  const { data: members } = await supabase
+    .from("family_members")
+    .select("user_id")
+    .eq("family_id", familyId);
+
+  if (!members || members.length === 0) return;
+
+  // Get activities for this week
+  const { data: weekActivities } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("theme_id", themeId)
+    .eq("week_number", weekNumber);
+
+  const activityIds = (weekActivities ?? []).map((a) => a.id);
+
+  // Check all members completed all activities
+  for (const member of members) {
+    if (activityIds.length > 0) {
+      const { data: responses } = await supabase
+        .from("responses")
+        .select("activity_id")
+        .eq("sprint_id", sprintId)
+        .eq("user_id", member.user_id)
+        .in("activity_id", activityIds);
+
+      const respondedSet = new Set(
+        (responses ?? []).map((r) => r.activity_id)
+      );
+      if (respondedSet.size < activityIds.length) return;
+    }
+  }
+
+  // Check all members have voted
+  const { data: votes } = await supabase
+    .from("week_votes")
+    .select("user_id")
+    .eq("sprint_id", sprintId)
+    .eq("week_number", weekNumber);
+
+  const voteSet = new Set((votes ?? []).map((v) => v.user_id));
+  for (const member of members) {
+    if (!voteSet.has(member.user_id)) return;
+  }
+
+  // All conditions met — advance the week
+  if (weekNumber < 6) {
+    await supabase
+      .from("family_sprints")
+      .update({ current_week: weekNumber + 1 })
+      .eq("id", sprintId);
+  } else {
+    // Week 6 completed — mark sprint as completed
+    await supabase
+      .from("family_sprints")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", sprintId);
+  }
+}

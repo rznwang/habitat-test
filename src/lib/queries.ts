@@ -156,3 +156,89 @@ export async function getMemoryBook(sprintId: string) {
     .single();
   return data;
 }
+
+export async function getWeekVotes(sprintId: string, weekNumber: number) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("week_votes")
+    .select("*, users(id, display_name, avatar_url)")
+    .eq("sprint_id", sprintId)
+    .eq("week_number", weekNumber);
+  return data ?? [];
+}
+
+/**
+ * Returns a per-member completion status for the given week:
+ * which members have responded to all activities in the week,
+ * and which have voted to advance.
+ */
+export async function getWeekProgressionStatus(
+  sprintId: string,
+  familyId: string,
+  themeId: string,
+  weekNumber: number
+) {
+  const supabase = await createClient();
+
+  // Get all family members
+  const { data: members } = await supabase
+    .from("family_members")
+    .select("user_id, users(id, display_name, avatar_url)")
+    .eq("family_id", familyId);
+
+  // Get activities for this week
+  const { data: weekActivities } = await supabase
+    .from("activities")
+    .select("id")
+    .eq("theme_id", themeId)
+    .eq("week_number", weekNumber);
+
+  // Get responses for this sprint + week's activities
+  const activityIds = (weekActivities ?? []).map((a) => a.id);
+  const { data: responses } = await supabase
+    .from("responses")
+    .select("user_id, activity_id")
+    .eq("sprint_id", sprintId)
+    .in("activity_id", activityIds.length > 0 ? activityIds : ["__none__"]);
+
+  // Get votes for this week
+  const { data: votes } = await supabase
+    .from("week_votes")
+    .select("user_id")
+    .eq("sprint_id", sprintId)
+    .eq("week_number", weekNumber);
+
+  const totalActivities = activityIds.length;
+  const voteSet = new Set((votes ?? []).map((v) => v.user_id));
+
+  // Build per-member status
+  const memberStatus = (members ?? []).map((m) => {
+    const userResponses = (responses ?? []).filter(
+      (r) => r.user_id === m.user_id
+    );
+    const respondedActivities = new Set(
+      userResponses.map((r) => r.activity_id)
+    );
+    const completedAll = totalActivities > 0 && respondedActivities.size >= totalActivities;
+    const hasVoted = voteSet.has(m.user_id);
+    return {
+      userId: m.user_id,
+      user: m.users,
+      completedAll,
+      completedCount: respondedActivities.size,
+      hasVoted,
+    };
+  });
+
+  const allCompleted = memberStatus.every((m) => m.completedAll);
+  const allVoted = memberStatus.every((m) => m.hasVoted);
+  const canAdvance = allCompleted && allVoted && memberStatus.length > 0;
+
+  return {
+    memberStatus,
+    totalActivities,
+    allCompleted,
+    allVoted,
+    canAdvance,
+  };
+}

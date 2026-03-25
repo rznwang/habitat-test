@@ -78,6 +78,7 @@
 | theme_id | uuid | | NOT NULL, FK → sprint_themes.id |
 | started_at | date | | NOT NULL |
 | ends_at | date | `started_at + 42 days` | |
+| current_week | integer | `1` | NOT NULL, CHECK: 1–6 |
 | status | varchar | `'active'` | NOT NULL, CHECK: `active`, `completed`, `abandoned` |
 | completed_at | timestamptz | | |
 
@@ -193,6 +194,19 @@
 | sprint_id | uuid | | NOT NULL, UNIQUE, FK → family_sprints.id |
 | generated_at | timestamptz | | |
 | pdf_url | varchar | | |
+
+---
+
+## week_votes
+
+| Column | Type | Default | Constraints |
+|---|---|---|---|
+| id | uuid | `gen_random_uuid()` | PK |
+| sprint_id | uuid | | NOT NULL, FK → family_sprints.id |
+| user_id | uuid | | NOT NULL, FK → users.id |
+| week_number | integer | | NOT NULL, CHECK: 1–6 |
+| created_at | timestamptz | `now()` | |
+| | | | UNIQUE(sprint_id, user_id, week_number) |
 
 ---
 

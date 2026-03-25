@@ -68,6 +68,7 @@ export interface FamilySprint {
   ends_at: string;
   status: SprintStatus;
   completed_at: string | null;
+  current_week: number;
   // joined fields
   sprint_themes?: SprintTheme;
 }
@@ -153,4 +154,12 @@ export interface MemoryBook {
   sprint_id: string;
   generated_at: string | null;
   pdf_url: string | null;
+}
+
+export interface WeekVote {
+  id: string;
+  sprint_id: string;
+  user_id: string;
+  week_number: number;
+  created_at: string;
 }

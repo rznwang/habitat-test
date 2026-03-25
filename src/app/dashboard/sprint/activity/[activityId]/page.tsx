@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/queries";
 import ResponseForm from "./response-form";
 import ResponseCard from "./response-card";
+import SprintSidebar from "../../sprint-sidebar";
 
 export default async function ActivityPage({
   params,
@@ -53,7 +54,10 @@ export default async function ActivityPage({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex gap-8">
+      <SprintSidebar currentActivityId={activityId} sprintId={sprintId} />
+
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
       {/* Activity header */}
       <div>
         <p className="text-[12px] font-medium text-clay uppercase tracking-[0.04em]">
@@ -102,6 +106,7 @@ export default async function ActivityPage({
             No responses yet. Be the first!
           </p>
         )}
+      </div>
       </div>
     </div>
   );

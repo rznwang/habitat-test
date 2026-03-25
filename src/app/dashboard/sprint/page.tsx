@@ -6,7 +6,9 @@ import {
   getActiveSprint,
   getSprintActivities,
   getSprintResponses,
+  getWeekProgressionStatus,
 } from "@/lib/queries";
+import { WeekProgressionPanel } from "./week-progression-panel";
 
 export default async function SprintPage() {
   const user = await getCurrentUser();
@@ -40,13 +42,16 @@ export default async function SprintPage() {
   const activities = await getSprintActivities(sprint.theme_id);
   const responses = await getSprintResponses(sprint.id);
 
-  // Calculate current week
-  const start = new Date(sprint.started_at);
-  const now = new Date();
-  const daysPassed = Math.floor(
-    (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+  // Use explicit current_week from sprint (progression-based, not time-based)
+  const currentWeek = sprint.current_week ?? 1;
+
+  // Get progression status for current week
+  const progression = await getWeekProgressionStatus(
+    sprint.id,
+    family.id,
+    sprint.theme_id,
+    currentWeek
   );
-  const currentWeek = Math.min(Math.floor(daysPassed / 7) + 1, 6);
 
   // Group activities by week
   const weeks = Array.from({ length: 6 }, (_, i) => i + 1);
@@ -92,11 +97,11 @@ export default async function SprintPage() {
         </p>
       </div>
 
-      {/* Sprint progress */}
+      {/* Sprint progress (week-based) */}
       <div className="h-2 w-full rounded-full bg-linen overflow-hidden">
         <div
           className="h-full rounded-full bg-sage transition-all duration-500"
-          style={{ width: `${Math.min((daysPassed / 42) * 100, 100)}%` }}
+          style={{ width: `${Math.min(((currentWeek - 1) / 6) * 100, 100)}%` }}
         />
       </div>
 
@@ -168,6 +173,32 @@ export default async function SprintPage() {
               <p className="text-[13px] text-clay/60 italic pl-1">
                 No activities for this week yet
               </p>
+            )}
+
+            {/* Show progression panel for the current week */}
+            {week === currentWeek && (
+              <WeekProgressionPanel
+                sprintId={sprint.id}
+                weekNumber={currentWeek}
+                currentUserId={user.id}
+                memberStatus={progression.memberStatus.map((m) => {
+                  const u = m.user as unknown as { id: string; display_name: string | null; avatar_url: string | null } | null;
+                  return {
+                    userId: m.userId,
+                    displayName: u?.display_name ?? null,
+                    avatarUrl: u?.avatar_url ?? null,
+                    completedCount: m.completedCount,
+                    totalActivities: progression.totalActivities,
+                    completedAll: m.completedAll,
+                    hasVoted: m.hasVoted,
+                  };
+                })}
+                totalActivities={progression.totalActivities}
+                allCompleted={progression.allCompleted}
+                allVoted={progression.allVoted}
+                canAdvance={progression.canAdvance}
+                isCurrentWeek={true}
+              />
             )}
           </div>
         );

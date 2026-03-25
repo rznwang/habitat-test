@@ -16,7 +16,7 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen flex-col">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-latte bg-cream/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link
             href="/dashboard"
             className="font-display text-lg font-semibold text-night"
@@ -79,7 +79,7 @@ export default async function DashboardLayout({
 
       {/* Content */}
       <main className="flex-1">
-        <div className="mx-auto max-w-3xl px-4 py-8">{children}</div>
+        <div className="mx-auto max-w-5xl px-4 py-8">{children}</div>
       </main>
     </div>
   );
