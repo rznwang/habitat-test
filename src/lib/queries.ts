@@ -274,7 +274,7 @@ export async function getDisbandVoteStatus(
   const voteSet = new Set((votes ?? []).map((v) => v.user_id));
 
   const memberStatus = (members ?? []).map((m) => {
-    const u = m.users as { id: string; display_name: string | null; avatar_url: string | null } | null;
+    const u = m.users as unknown as { id: string; display_name: string | null; avatar_url: string | null } | null;
     return {
       userId: m.user_id,
       displayName: u?.display_name ?? null,

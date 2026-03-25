@@ -46,6 +46,12 @@ export default async function DashboardLayout({
                   Family
                 </Link>
                 <Link
+                  href="/dashboard/family/photos"
+                  className="hover:text-bark transition-colors"
+                >
+                  📷 Picture Book
+                </Link>
+                <Link
                   href="/dashboard/stats"
                   className="hover:text-bark transition-colors"
                 >
