@@ -36,7 +36,7 @@ export default function PhotoCard({
       <img
         src={photo.image_url}
         alt={photo.caption ?? "Family photo"}
-        className="w-full aspect-square object-cover"
+        className="w-full aspect-[4/5] object-cover"
       />
       <div className="p-3">
         {photo.caption && (
