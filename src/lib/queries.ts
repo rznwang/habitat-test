@@ -28,6 +28,16 @@ export async function getUserFamily(userId: string) {
   return membership;
 }
 
+export async function getUserFamilies(userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("family_members")
+    .select("*, families(*)")
+    .eq("user_id", userId)
+    .order("joined_at");
+  return data ?? [];
+}
+
 export async function getFamilyMembers(familyId: string) {
   const supabase = await createClient();
   const { data } = await supabase

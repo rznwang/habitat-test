@@ -50,13 +50,59 @@ export async function updateProfile(formData: FormData) {
   const display_name = String(formData.get("display_name")).trim();
   if (!display_name) return { error: "Display name is required" };
 
+  const bio = String(formData.get("bio") ?? "").trim();
+
   const { error } = await supabase
     .from("users")
-    .update({ display_name })
+    .update({ display_name, bio: bio || null })
     .eq("id", user.id);
 
   if (error) return { error: error.message };
   revalidatePath("/");
+}
+
+export async function uploadAvatar(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const file = formData.get("avatar") as File | null;
+  if (!file || file.size === 0) return { error: "No file selected" };
+
+  // Validate file type
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    return { error: "Only JPEG, PNG, WebP, and GIF images are allowed" };
+  }
+
+  // Validate file size (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    return { error: "Image must be under 2 MB" };
+  }
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${user.id}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({ avatar_url: publicUrl })
+    .eq("id", user.id);
+
+  if (updateError) return { error: updateError.message };
+  revalidatePath("/");
+  return { url: publicUrl };
 }
 
 // ── Invites ──────────────────────────────────────────────────
@@ -160,6 +206,41 @@ export async function startSprint(familyId: string, themeId: string) {
 }
 
 // ── Activity Responses ──────────────────────────────────────
+
+export async function uploadResponsePhoto(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const file = formData.get("photo") as File | null;
+  if (!file || file.size === 0) return { error: "No photo selected" };
+
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowed.includes(file.type)) {
+    return { error: "Only JPEG, PNG, WebP, and GIF images are allowed" };
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    return { error: "Image must be under 5 MB" };
+  }
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("responses")
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("responses").getPublicUrl(path);
+
+  return { url: publicUrl };
+}
 
 export async function submitResponse(
   sprintId: string,

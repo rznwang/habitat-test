@@ -59,6 +59,12 @@ export default async function DashboardLayout({
                 </Link>
               </>
             )}
+            <Link
+              href="/dashboard/profile"
+              className="hover:text-bark transition-colors"
+            >
+              Profile
+            </Link>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"

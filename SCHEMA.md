@@ -13,6 +13,7 @@
 | password_hash | varchar | | |
 | display_name | varchar | | |
 | avatar_url | varchar | | |
+| bio | text | | |
 | created_at | timestamptz | `now()` | |
 
 ---

@@ -1,8 +1,8 @@
 "use client";
 
-import { submitResponse } from "@/lib/actions";
+import { submitResponse, uploadResponsePhoto } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function ResponseForm({
   sprintId,
@@ -19,6 +19,9 @@ export default function ResponseForm({
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const responseType =
     activityType === "photo"
@@ -29,32 +32,93 @@ export default function ResponseForm({
           ? "drawing"
           : "text";
 
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) {
+      setError("Only JPEG, PNG, WebP, and GIF images are allowed");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5 MB");
+      return;
+    }
+
+    setError(null);
+    setPhotoFile(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+  }
+
+  function clearPhoto() {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim()) return;
     setLoading(true);
     setError(null);
 
-    const result = await submitResponse(
-      sprintId,
-      activityId,
-      responseType,
-      content.trim(),
-      isAnonymous
-    );
+    if (responseType === "image") {
+      if (!photoFile) {
+        setError("Please take or select a photo");
+        setLoading(false);
+        return;
+      }
 
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
+      const formData = new FormData();
+      formData.append("photo", photoFile);
+      const uploadResult = await uploadResponsePhoto(formData);
+
+      if (uploadResult.error) {
+        setError(uploadResult.error);
+        setLoading(false);
+        return;
+      }
+
+      const result = await submitResponse(
+        sprintId,
+        activityId,
+        responseType,
+        uploadResult.url!,
+        isAnonymous
+      );
+
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      } else {
+        clearPhoto();
+        router.refresh();
+      }
     } else {
-      setContent("");
-      router.refresh();
+      if (!content.trim()) return;
+
+      const result = await submitResponse(
+        sprintId,
+        activityId,
+        responseType,
+        content.trim(),
+        isAnonymous
+      );
+
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      } else {
+        setContent("");
+        router.refresh();
+      }
     }
   }
 
   const placeholders: Record<string, string> = {
     question: "Type your answer…",
-    photo: "Paste an image URL…",
     poll: "Type your vote…",
     dare: "Describe what you did…",
     draw: "Describe your drawing…",
@@ -75,7 +139,46 @@ export default function ResponseForm({
         )}
       </label>
 
-      {responseType === "text" || responseType === "drawing" ? (
+      {responseType === "image" ? (
+        <div className="flex flex-col gap-3">
+          {photoPreview ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoPreview}
+                alt="Photo preview"
+                className="w-full max-h-64 object-cover rounded-[10px] border border-latte"
+              />
+              <button
+                type="button"
+                onClick={clearPhoto}
+                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-night/60 text-cream flex items-center justify-center text-sm hover:bg-night/80 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 h-24 rounded-[10px] border-2 border-dashed border-latte bg-cream flex flex-col items-center justify-center gap-1 text-clay hover:border-umber hover:text-umber transition-colors cursor-pointer"
+              >
+                <span className="text-2xl">📸</span>
+                <span className="text-[12px] font-medium">Take Photo</span>
+              </button>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            capture="environment"
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
+        </div>
+      ) : responseType === "text" || responseType === "drawing" ? (
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -99,7 +202,7 @@ export default function ResponseForm({
 
       <button
         type="submit"
-        disabled={loading || !content.trim()}
+        disabled={loading || (responseType === "image" ? !photoFile : !content.trim())}
         className="self-end h-10 rounded-[10px] bg-umber px-5 text-[14px] font-semibold text-cream hover:bg-bark transition-colors disabled:opacity-50 cursor-pointer"
       >
         {loading ? "Submitting…" : "Submit"}
