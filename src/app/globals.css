@@ -1,26 +1,51 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Brand Colors — Warm Browns */
+  --color-sand: #D4C4B0;
+  --color-latte: #C2AD96;
+  --color-clay: #A89279;
+  --color-umber: #8B7355;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brand Colors — Muted Sage Greens */
+  --color-mist: #C5CCBA;
+  --color-sage: #A3B18A;
+  --color-olive: #8A9A6D;
+
+  /* Brand Neutrals */
+  --color-cream: #FAF7F2;
+  --color-linen: #EDE8E0;
+  --color-bark: #4A3F35;
+  --color-night: #2C241C;
+
+  /* Semantic Mappings */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-bark);
+
+  /* Font Families */
+  --font-display: "Fraunces", serif;
+  --font-sans: "DM Sans", sans-serif;
+
+  /* Border Radius */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 10px;
+  --radius-modal: 20px;
+
+  /* Shadows (warm-toned) */
+  --shadow-card: 0 2px 8px rgba(74, 63, 53, 0.06);
+  --shadow-dropdown: 0 4px 16px rgba(74, 63, 53, 0.10);
+  --shadow-modal: 0 8px 32px rgba(74, 63, 53, 0.14);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-bark);
+  font-family: var(--font-sans);
 }
+
+/* Brand gradient utility */
+.bg-the-fade {
+  background: linear-gradient(135deg, #FAF7F2 0%, #D4C4B0 50%, #A3B18A 100%);
+}
+

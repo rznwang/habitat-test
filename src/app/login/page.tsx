@@ -51,12 +51,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 dark:bg-black p-8">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-cream p-8">
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Habitat
+        <h1 className="font-display text-[32px] font-semibold tracking-[-0.01em] leading-[1.2] text-night">
+          Family Bonds
         </h1>
-        <p className="text-zinc-500 dark:text-zinc-400 text-center">
+        <p className="text-clay text-center text-[15px] leading-[1.6] tracking-[0.01em]">
           {isSignUp ? "Create an account" : "Sign in to continue"}
         </p>
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="h-12 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+            className="h-12 w-full rounded-[10px] border border-latte bg-linen px-4 text-bark placeholder:text-clay focus:outline-none focus:ring-2 focus:ring-umber"
           />
           <input
             type="password"
@@ -76,20 +76,20 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="h-12 w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+            className="h-12 w-full rounded-[10px] border border-latte bg-linen px-4 text-bark placeholder:text-clay focus:outline-none focus:ring-2 focus:ring-umber"
           />
 
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <p className="text-sm text-red-700">{error}</p>
           )}
           {message && (
-            <p className="text-sm text-green-600 dark:text-green-400">{message}</p>
+            <p className="text-sm text-olive">{message}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="flex h-12 w-full items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100 px-5 text-white dark:text-black font-medium transition-colors hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-50 cursor-pointer"
+            className="flex h-12 w-full items-center justify-center rounded-[12px] bg-umber px-4 text-cream text-[15px] font-semibold tracking-[0.03em] transition-colors duration-200 ease-in-out hover:bg-bark disabled:opacity-50 cursor-pointer"
           >
             {loading ? "..." : isSignUp ? "Sign up" : "Sign in"}
           </button>
@@ -101,7 +101,7 @@ export default function LoginPage() {
             setError(null);
             setMessage(null);
           }}
-          className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+          className="text-[14px] text-clay hover:text-bark transition-colors duration-200 ease-in-out cursor-pointer"
         >
           {isSignUp
             ? "Already have an account? Sign in"
