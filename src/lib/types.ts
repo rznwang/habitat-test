@@ -164,6 +164,13 @@ export interface WeekVote {
   created_at: string;
 }
 
+export interface DisbandVote {
+  id: string;
+  sprint_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 export interface FamilyPhoto {
   id: string;
   family_id: string;
