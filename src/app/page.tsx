@@ -1,8 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   const { count, error } = await supabase
     .from("test_items")
     .select("*", { count: "exact", head: true });
@@ -16,7 +26,7 @@ export default async function Home() {
           Habitat
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400 text-center">
-          Next.js + Supabase
+          Signed in as {user.email}
         </p>
 
         <div className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
@@ -48,6 +58,15 @@ export default async function Home() {
         >
           Open Test Page
         </Link>
+
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+          >
+            Sign out
+          </button>
+        </form>
       </main>
     </div>
   );
