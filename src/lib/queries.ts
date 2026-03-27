@@ -73,6 +73,16 @@ export const getSprintActivities = cache(async (themeId: string) => {
   return data ?? [];
 });
 
+export const getThemeWeeks = cache(async (themeId: string) => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("theme_weeks")
+    .select("*")
+    .eq("theme_id", themeId)
+    .order("week_number");
+  return data ?? [];
+});
+
 export const getSprintResponses = cache(async (sprintId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
