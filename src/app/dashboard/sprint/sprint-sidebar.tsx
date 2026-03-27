@@ -8,6 +8,17 @@ import {
   getSprintResponses,
 } from "@/lib/queries";
 
+const FAMILIESPRINT_THEME_ID = "11111111-1111-1111-1111-111111111104";
+
+const FAMILIESPRINT_WEEK_SHORT: Record<number, string> = {
+  1: "Vakantieherinnering",
+  2: "Familie-uitstap",
+  3: "Jeugdherinnering",
+  4: "Familiemenu",
+  5: "Dagvlog",
+  6: "Familiefeest",
+};
+
 export default async function SprintSidebar({
   currentActivityId,
   sprintId,
@@ -31,6 +42,7 @@ export default async function SprintSidebar({
   // Use explicit current_week from sprint (progression-based)
   const currentWeek = sprint.current_week ?? 1;
   const progress = Math.min(((currentWeek - 1) / 6) * 100, 100);
+  const isFamiliesprint = sprint.theme_id === FAMILIESPRINT_THEME_ID;
 
   const userRespondedSet = new Set(
     responses.filter((r) => r.user_id === user.id).map((r) => r.activity_id)
@@ -103,6 +115,9 @@ export default async function SprintSidebar({
                 }`}
               >
                 Week {week}
+                {isFamiliesprint && FAMILIESPRINT_WEEK_SHORT[week]
+                  ? ` · ${FAMILIESPRINT_WEEK_SHORT[week]}`
+                  : ""}
                 {!isUnlocked && " 🔒"}
                 {week === currentWeek && " •"}
               </p>

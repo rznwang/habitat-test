@@ -36,7 +36,7 @@ export async function createFamily(formData: FormData) {
   // Initialize XP
   await supabase.from("family_xp").insert({ family_id: family.id });
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   redirect("/dashboard");
 }
 
@@ -58,7 +58,7 @@ export async function updateProfile(formData: FormData) {
     .eq("id", user.id);
 
   if (error) return { error: error.message };
-  revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function uploadAvatar(formData: FormData) {
@@ -101,7 +101,7 @@ export async function uploadAvatar(formData: FormData) {
     .eq("id", user.id);
 
   if (updateError) return { error: updateError.message };
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   return { url: publicUrl };
 }
 
@@ -175,7 +175,7 @@ export async function acceptInvite(token: string) {
     .update({ used_at: new Date().toISOString() })
     .eq("id", invite.id);
 
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   redirect("/dashboard");
 }
 
@@ -265,7 +265,7 @@ export async function submitResponse(
   });
 
   if (error) return { error: error.message };
-  revalidatePath(`/sprint/${sprintId}`);
+  revalidatePath(`/dashboard/sprint`);
   return { success: true };
 }
 
@@ -655,4 +655,197 @@ async function tryDisbandSprint(sprintId: string, familyId: string) {
       completed_at: new Date().toISOString(),
     })
     .eq("id", sprintId);
+}
+
+// ── Proposals ───────────────────────────────────────────────
+
+export async function submitProposal(
+  sprintId: string,
+  activityId: string,
+  formData: FormData
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Title is required" };
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const photo_url = String(formData.get("photo_url") ?? "").trim() || null;
+  const link_url = String(formData.get("link_url") ?? "").trim() || null;
+  const budget_note = String(formData.get("budget_note") ?? "").trim() || null;
+  const servingsStr = formData.get("servings");
+  const servings = servingsStr ? parseInt(String(servingsStr), 10) || null : null;
+
+  const { error } = await supabase.from("proposals").insert({
+    sprint_id: sprintId,
+    activity_id: activityId,
+    user_id: user.id,
+    title,
+    description,
+    photo_url,
+    link_url,
+    budget_note,
+    servings,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { error: "Je hebt al een voorstel ingediend" };
+    return { error: error.message };
+  }
+
+  // Also submit as a response so progression system counts it
+  await supabase.from("responses").upsert(
+    {
+      sprint_id: sprintId,
+      activity_id: activityId,
+      user_id: user.id,
+      type: "text",
+      content: title,
+      is_anonymous: false,
+    },
+    { onConflict: "sprint_id,activity_id,user_id" }
+  );
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+export async function voteForProposal(proposalId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Check user hasn't exceeded vote limit (2 per activity)
+  const { data: proposal } = await supabase
+    .from("proposals")
+    .select("activity_id, sprint_id")
+    .eq("id", proposalId)
+    .single();
+
+  if (!proposal) return { error: "Proposal not found" };
+
+  const { data: existingVotes } = await supabase
+    .from("proposal_votes")
+    .select("id, proposal_id")
+    .eq("user_id", user.id);
+
+  // Count votes for proposals in the same activity
+  const { data: activityProposals } = await supabase
+    .from("proposals")
+    .select("id")
+    .eq("activity_id", proposal.activity_id)
+    .eq("sprint_id", proposal.sprint_id);
+
+  const activityProposalIds = new Set(
+    (activityProposals ?? []).map((p) => p.id)
+  );
+  const votesForActivity = (existingVotes ?? []).filter((v) =>
+    activityProposalIds.has(v.proposal_id)
+  );
+
+  if (votesForActivity.length >= 2) {
+    return { error: "Je mag maximaal 2 stemmen uitbrengen" };
+  }
+
+  const { error } = await supabase.from("proposal_votes").insert({
+    proposal_id: proposalId,
+    user_id: user.id,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { error: "Je hebt al op dit voorstel gestemd" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+export async function removeProposalVote(proposalId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  await supabase
+    .from("proposal_votes")
+    .delete()
+    .eq("proposal_id", proposalId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
+}
+
+// ── Video Upload ────────────────────────────────────────────
+
+export async function uploadResponseVideo(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const file = formData.get("video") as File | null;
+  if (!file || file.size === 0) return { error: "No video selected" };
+
+  const allowed = ["video/mp4", "video/webm", "video/quicktime"];
+  if (!allowed.includes(file.type)) {
+    return { error: "Only MP4, WebM, and MOV videos are allowed" };
+  }
+
+  if (file.size > 50 * 1024 * 1024) {
+    return { error: "Video must be under 50 MB" };
+  }
+
+  const ext = file.name.split(".").pop() ?? "mp4";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("responses")
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("responses").getPublicUrl(path);
+
+  return { url: publicUrl };
+}
+
+// ── Survey ──────────────────────────────────────────────────
+
+export async function submitSurveyResponse(
+  sprintId: string,
+  activityId: string,
+  answers: Record<string, string | string[]>
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const content = JSON.stringify(answers);
+
+  const { error } = await supabase.from("responses").insert({
+    sprint_id: sprintId,
+    activity_id: activityId,
+    user_id: user.id,
+    type: "text",
+    content,
+    is_anonymous: false,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/sprint");
+  return { success: true };
 }

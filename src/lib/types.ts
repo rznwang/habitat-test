@@ -12,7 +12,14 @@ export type ActivityType =
   | "story"
   | "confession"
   | "voice";
-export type ResponseType = "text" | "image" | "audio" | "drawing";
+export type ActivityLayout =
+  | "immersive-text"
+  | "immersive-photo"
+  | "immersive-video"
+  | "proposal"
+  | "survey";
+export type MomentType = "reveal" | "vote_result" | "survey_summary" | "slideshow";
+export type ResponseType = "text" | "image" | "audio" | "drawing" | "video";
 
 export interface User {
   id: string;
@@ -82,6 +89,20 @@ export interface Activity {
   prompt: string;
   is_anonymous: boolean;
   allow_comments: boolean;
+  challenge_intro: string | null;
+  layout: ActivityLayout | null;
+  moment_type: MomentType | null;
+  moment_description: string | null;
+}
+
+export interface ThemeWeek {
+  id: string;
+  theme_id: string;
+  week_number: number;
+  title: string;
+  subtitle: string | null;
+  icon: string | null;
+  moment_label: string | null;
 }
 
 export interface Response {
@@ -180,4 +201,55 @@ export interface FamilyPhoto {
   created_at: string;
   // joined fields
   users?: User;
+}
+
+// ── Proposals & Voting ──────────────────────────────────────
+
+export interface Proposal {
+  id: string;
+  sprint_id: string;
+  activity_id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  photo_url: string | null;
+  link_url: string | null;
+  budget_note: string | null;
+  servings: number | null;
+  created_at: string;
+  // joined / computed fields
+  users?: User;
+  vote_count?: number;
+  user_voted?: boolean;
+  proposal_votes?: ProposalVote[];
+}
+
+export interface ProposalVote {
+  id: string;
+  proposal_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+// ── Survey ──────────────────────────────────────────────────
+
+export interface SurveyAnswers {
+  [questionKey: string]: string | string[];
+}
+
+// ── Sprint Summary ──────────────────────────────────────────
+
+export interface SprintSummary {
+  sprintId: string;
+  themeName: string;
+  themeIcon: string;
+  weeks: {
+    weekNumber: number;
+    title: string;
+    highlights: {
+      topResponses: { content: string | null; userName: string; reactionCount: number }[];
+      winningProposal?: { title: string; description: string | null; userName: string; voteCount: number };
+      surveyResults?: Record<string, { label: string; counts: Record<string, number> }>;
+    };
+  }[];
 }

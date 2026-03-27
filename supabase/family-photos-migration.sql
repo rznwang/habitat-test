@@ -52,6 +52,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Upload: family members can upload to their own folder
 CREATE POLICY "Users can upload family photos"
   ON storage.objects FOR INSERT
+  TO authenticated
   WITH CHECK (
     bucket_id = 'family-photos'
     AND (storage.foldername(name))[1] = auth.uid()::text

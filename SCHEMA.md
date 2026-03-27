@@ -91,11 +91,29 @@
 | id | uuid | `gen_random_uuid()` | PK |
 | theme_id | uuid | | NOT NULL, FK → sprint_themes.id |
 | week_number | integer | | NOT NULL, CHECK: 1–6 |
-| sort_order | integer | | NOT NULL, CHECK: 1–3 |
+| sort_order | integer | | NOT NULL, CHECK: 1–2 |
 | type | varchar | | NOT NULL, CHECK: `question`, `photo`, `poll`, `dare`, `draw`, `story`, `confession`, `voice` |
 | prompt | text | | NOT NULL |
 | is_anonymous | boolean | `false` | |
 | allow_comments | boolean | `true` | |
+| layout | varchar | | CHECK: `immersive-text`, `immersive-photo`, `immersive-video`, `proposal`, `survey` |
+| moment_type | varchar | | CHECK: `reveal`, `vote_result`, `survey_summary`, `slideshow` |
+| moment_description | text | | |
+
+---
+
+## theme_weeks
+
+| Column | Type | Default | Constraints |
+|---|---|---|---|
+| id | uuid | `gen_random_uuid()` | PK |
+| theme_id | uuid | | NOT NULL, FK → sprint_themes.id |
+| week_number | integer | | NOT NULL, CHECK: 1–6 |
+| title | varchar | | NOT NULL |
+| subtitle | text | | |
+| icon | varchar | | |
+| moment_label | varchar | | |
+| | | | UNIQUE(theme_id, week_number) |
 
 ---
 
@@ -247,7 +265,7 @@ users ──┬── family_members ──── families
 ```
 
 - A **family** has many **family_members** (users with roles).
-- A **sprint_theme** has many **activities** (3 per week, 6 weeks).
+- A **sprint_theme** has many **activities** (1–2 per week, 6 weeks) and **theme_weeks** (metadata per week).
 - A **family_sprint** links a family to a theme for a 42-day cycle.
 - **Responses** are submitted per user per activity within a sprint.
 - Responses can have **comments** and **reactions**.

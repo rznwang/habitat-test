@@ -11,6 +11,27 @@ import {
 } from "@/lib/queries";
 import { WeekProgressionPanel } from "./week-progression-panel";
 import { DisbandSprintPanel } from "./disband-sprint-panel";
+import ChallengeIntroModal from "./challenge-intro-modal";
+
+const FAMILIESPRINT_THEME_ID = "11111111-1111-1111-1111-111111111104";
+
+const FAMILIESPRINT_WEEK_TITLES: Record<number, string> = {
+  1: "Onze mooiste familievakantieherinnering",
+  2: "Kies onze volgende familie-uitstap",
+  3: "Mijn mooiste jeugdherinnering",
+  4: "Welk budgetmenu koken we voor de familie?",
+  5: "Neem ons mee in jouw dag",
+  6: "Samen ons familiefeest organiseren",
+};
+
+const FAMILIESPRINT_WEEK_ICONS: Record<number, string> = {
+  1: "🏖️",
+  2: "🗺️",
+  3: "👶",
+  4: "👨‍🍳",
+  5: "🎬",
+  6: "🎉",
+};
 
 export default async function SprintPage() {
   const user = await getCurrentUser();
@@ -46,6 +67,15 @@ export default async function SprintPage() {
 
   // Use explicit current_week from sprint (progression-based, not time-based)
   const currentWeek = sprint.current_week ?? 1;
+
+  const isFamiliesprint = sprint.theme_id === FAMILIESPRINT_THEME_ID;
+
+  // Find challenge_intro for current week's first activity (if Familiesprint)
+  const currentWeekIntro = isFamiliesprint
+    ? activities.find(
+        (a) => a.week_number === currentWeek && a.sort_order === 1
+      )
+    : null;
 
   // Get progression status for current week
   const [progression, disbandStatus] = await Promise.all([
@@ -110,6 +140,16 @@ export default async function SprintPage() {
         />
       </div>
 
+      {/* Challenge intro modal for Familiesprint */}
+      {isFamiliesprint && currentWeekIntro?.challenge_intro && (
+        <ChallengeIntroModal
+          weekNumber={currentWeek}
+          title={FAMILIESPRINT_WEEK_TITLES[currentWeek] ?? `Week ${currentWeek}`}
+          introText={currentWeekIntro.challenge_intro}
+          icon={FAMILIESPRINT_WEEK_ICONS[currentWeek] ?? "📌"}
+        />
+      )}
+
       {/* Weeks */}
       {weeks.map((week) => {
         const weekActivities = activities.filter(
@@ -121,7 +161,13 @@ export default async function SprintPage() {
           <div key={week} className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <h2 className="text-[13px] font-semibold text-night">
+                {isFamiliesprint && FAMILIESPRINT_WEEK_ICONS[week]
+                  ? `${FAMILIESPRINT_WEEK_ICONS[week]} `
+                  : ""}
                 Week {week}
+                {isFamiliesprint && FAMILIESPRINT_WEEK_TITLES[week]
+                  ? `: ${FAMILIESPRINT_WEEK_TITLES[week]}`
+                  : ""}
               </h2>
               {!isUnlocked && (
                 <span className="text-[11px] text-clay bg-linen px-2 py-0.5 rounded-full">

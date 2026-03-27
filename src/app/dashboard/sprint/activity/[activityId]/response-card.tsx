@@ -115,6 +115,15 @@ export default function ResponseCard({
               className="w-full max-h-64 object-cover"
             />
           </div>
+        ) : response.type === "video" && response.content ? (
+          <div className="rounded-[10px] overflow-hidden bg-night border border-latte">
+            <video
+              src={response.content}
+              controls
+              preload="metadata"
+              className="w-full max-h-80"
+            />
+          </div>
         ) : (
           <p className="whitespace-pre-wrap">{response.content}</p>
         )}

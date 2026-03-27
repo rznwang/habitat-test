@@ -1,6 +1,6 @@
 "use client";
 
-import { submitResponse, uploadResponsePhoto } from "@/lib/actions";
+import { submitResponse, uploadResponsePhoto, uploadResponseVideo } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
@@ -9,11 +9,13 @@ export default function ResponseForm({
   activityId,
   activityType,
   isAnonymous,
+  showVideoUpload,
 }: {
   sprintId: string;
   activityId: string;
   activityType: string;
   isAnonymous: boolean;
+  showVideoUpload?: boolean;
 }) {
   const router = useRouter();
   const [content, setContent] = useState("");
@@ -21,16 +23,21 @@ export default function ResponseForm({
   const [error, setError] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const responseType =
-    activityType === "photo"
-      ? "image"
-      : activityType === "voice"
-        ? "audio"
-        : activityType === "draw"
-          ? "drawing"
-          : "text";
+    showVideoUpload && videoFile
+      ? "video"
+      : activityType === "photo"
+        ? "image"
+        : activityType === "voice"
+          ? "audio"
+          : activityType === "draw"
+            ? "drawing"
+            : "text";
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -57,6 +64,32 @@ export default function ResponseForm({
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["video/mp4", "video/webm", "video/quicktime"];
+    if (!allowed.includes(file.type)) {
+      setError("Enkel MP4, WebM en MOV video's zijn toegestaan");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setError("Video moet kleiner zijn dan 50 MB");
+      return;
+    }
+
+    setError(null);
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+  }
+
+  function clearVideo() {
+    setVideoFile(null);
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoPreview(null);
+    if (videoInputRef.current) videoInputRef.current.value = "";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,6 +127,38 @@ export default function ResponseForm({
         setLoading(false);
       } else {
         clearPhoto();
+        router.refresh();
+      }
+    } else if (responseType === "video") {
+      if (!videoFile) {
+        setError("Selecteer een video");
+        setLoading(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("video", videoFile);
+      const uploadResult = await uploadResponseVideo(formData);
+
+      if (uploadResult.error) {
+        setError(uploadResult.error);
+        setLoading(false);
+        return;
+      }
+
+      const result = await submitResponse(
+        sprintId,
+        activityId,
+        "video",
+        uploadResult.url!,
+        isAnonymous
+      );
+
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      } else {
+        clearVideo();
         router.refresh();
       }
     } else {
@@ -167,6 +232,32 @@ export default function ResponseForm({
                 <span className="text-2xl">📸</span>
                 <span className="text-[12px] font-medium">Take Photo</span>
               </button>
+              {showVideoUpload && (
+                <button
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  className="flex-1 h-24 rounded-[10px] border-2 border-dashed border-latte bg-cream flex flex-col items-center justify-center gap-1 text-clay hover:border-umber hover:text-umber transition-colors cursor-pointer"
+                >
+                  <span className="text-2xl">🎬</span>
+                  <span className="text-[12px] font-medium">Upload Vlog</span>
+                </button>
+              )}
+            </div>
+          )}
+          {videoPreview && (
+            <div className="relative">
+              <video
+                src={videoPreview}
+                controls
+                className="w-full max-h-64 rounded-[10px] border border-latte bg-night"
+              />
+              <button
+                type="button"
+                onClick={clearVideo}
+                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-night/60 text-cream flex items-center justify-center text-sm hover:bg-night/80 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
           )}
           <input
@@ -177,6 +268,20 @@ export default function ResponseForm({
             onChange={handlePhotoSelect}
             className="hidden"
           />
+          {showVideoUpload && (
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              onChange={handleVideoSelect}
+              className="hidden"
+            />
+          )}
+          {showVideoUpload && !videoPreview && !photoPreview && (
+            <p className="text-[12px] text-clay text-center">
+              💡 Tip: hou je vlog kort en spontaan (1-3 minuten)
+            </p>
+          )}
         </div>
       ) : responseType === "text" || responseType === "drawing" ? (
         <textarea
@@ -202,7 +307,7 @@ export default function ResponseForm({
 
       <button
         type="submit"
-        disabled={loading || (responseType === "image" ? !photoFile : !content.trim())}
+        disabled={loading || (responseType === "image" ? !photoFile : responseType === "video" ? !videoFile : !content.trim())}
         className="self-end h-10 rounded-[10px] bg-umber px-5 text-[14px] font-semibold text-cream hover:bg-bark transition-colors disabled:opacity-50 cursor-pointer"
       >
         {loading ? "Submitting…" : "Submit"}
